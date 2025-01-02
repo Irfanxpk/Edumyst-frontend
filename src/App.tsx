@@ -1,35 +1,82 @@
-import { useState, version } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { Suspense, lazy } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
-function App() {
-  const [count, setCount] = useState(0)
+// Lazy Loaded Pages
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const Login = lazy(() => import("./pages/Login"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
+const MentorDashboard = lazy(() => import("./pages/MentorDashboard"));
+const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 
+// Private Route Component
+const PrivateRoute: React.FC<{ children: JSX.Element; role: string }> = ({
+  children,
+  role,
+}) => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (user.role !== role) {
+    return <Navigate to="/unauthorized" />;
+  }
+
+  return children;
+};
+
+const App: React.FC = () => {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React { version}</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <AuthProvider>
+      <Router>
+        <Suspense fallback={<div>Loading...</div>}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
 
-export default App
+            {/* Role-Based Private Routes */}
+            <Route
+              path="/admin"
+              element={
+                <PrivateRoute role="admin">
+                  <AdminDashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/student"
+              element={
+                <PrivateRoute role="student">
+                  <StudentDashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/mentor"
+              element={
+                <PrivateRoute role="mentor">
+                  <MentorDashboard />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Default Route */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Suspense>
+      </Router>
+    </AuthProvider>
+  );
+};
+
+export default App;
